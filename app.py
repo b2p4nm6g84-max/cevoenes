@@ -179,7 +179,10 @@ with tab_stok:
         cols[1].write(slot)
         cols[2].write(f"**{renk if renk else 'İsimsiz Renk'}**")
         cols[3].write(f"**{stok} Adet**")
-        cols[4].markdown(('<span class="badge-err">TÜKENDİ</span>' if stok == 0 else ('<span class="badge-warn">KRİTİK</span>' if stok <= kritik else '<span class="badge-ok">YETERLİ</span>'), unsafe_allow_html=True)
+        
+        # Hata düzeltilen kısım burada:
+        durum_html = '<span class="badge-err">TÜKENDİ</span>' if stok == 0 else ('<span class="badge-warn">KRİTİK</span>' if stok <= kritik else '<span class="badge-ok">YETERLİ</span>')
+        cols[4].markdown(durum_html, unsafe_allow_html=True)
         
         if cols[5].button("➕ +1", key=f"p_{kod}", use_container_width=True):
             stok_guncelle(sat, kod, m_sec, renk, stok, 1, "Stok Girişi (+1)", aktif_kisi)
@@ -205,8 +208,6 @@ with tab_stok:
 # --- SEKME 2: FİNANS VE DİNAMİK FİYATLANDIRMA ---
 with tab_finans:
     st.subheader("📊 Aylık Değişken Giderler (Aydan Aya Kolayca Güncelleyebilirsin)")
-    st.caption("Kargo zamları, paketleme maliyetleri veya aylık sabit giderler değiştiğinde buradaki değerleri anında güncelleyebilirsin.")
-    
     v_kargo = float(df_fin["Toptan Koli Kargosu"].iloc[0]) if not df_fin.empty else 150.0
     v_adet = int(df_fin["Koli Urun Adedi"].iloc[0]) if "Koli Urun Adedi" in df_fin.columns and not df_fin.empty else 50
     v_paket = float(df_fin["Paketleme Gideri (TL)"].iloc[0]) if "Paketleme Gideri (TL)" in df_fin.columns and not df_fin.empty else 5.0
@@ -254,7 +255,6 @@ with tab_finans:
         kesinti = (satis * (v_oran + sh_oran)) + v_sabit + sh_sabit + y_paket
         toplam_gider = gelis + koli_kargo_payi + m_kargo + kesinti
         
-        # Profesyonel Ters Orantılı Başabaş Net Kâr Fiyatı
         payda = 1.0 - (katsayi * (v_oran + sh_oran))
         onerilen_fiyat = (sabit_maliyet * katsayi) / payda if payda > 0.05 else toplam_gider * katsayi
         
