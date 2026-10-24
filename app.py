@@ -56,33 +56,40 @@ def google_baglan():
 
 @st.cache_data(ttl=30)
 def verileri_yukle():
-    sh = google_baglan()
-    mevcut = [ws.title for ws in sh.worksheets()]
-    if not all(s in mevcut for s in ["Stok_Detay", "Finans_Ayar", "Islem_Log"]):
-        return False, None, None, None, None
-        
-    df_stok = pd.DataFrame(sh.worksheet("Stok_Detay").get_all_values())
-    df_stok.columns = df_stok.iloc[0]
-    df_stok = df_stok.drop(0).reset_index(drop=True)
-    df_stok["Mevcut Stok"] = pd.to_numeric(df_stok["Mevcut Stok"], errors="coerce").fillna(0).astype(int)
-    df_stok["Kritik Sınır"] = pd.to_numeric(df_stok["Kritik Sınır"], errors="coerce").fillna(3).astype(int)
-    df_stok["Sheet_Satir"] = df_stok.index + 2
-    
-    df_fin = pd.DataFrame(sh.worksheet("Finans_Ayar").get_all_values())
-    df_fin.columns = df_fin.iloc[0]
-    df_fin = df_fin.drop(0).reset_index(drop=True)
-    for col in df_fin.columns[1:]:
-        df_fin[col] = pd.to_numeric(df_fin[col], errors="coerce").fillna(0.0)
-        
-    v_log = sh.worksheet("Islem_Log").get_all_values()
-    df_log = pd.DataFrame(v_log[1:], columns=v_log[0]) if len(v_log) > 1 else pd.DataFrame(columns=["Tarih", "Ekip Üyesi", "Stok Kodu", "Model Grubu", "Renk Adı", "İşlem Türü", "Adet Değişimi", "Son Stok"])
-    
-    df_rap = pd.DataFrame(columns=["Tarih", "Kişi", "Rapor Detayı"])
-    if "Rapor" in mevcut:
-        v_r = sh.worksheet("Rapor").get_all_values()
-        if len(v_r) > 1: df_rap = pd.DataFrame(v_r[1:], columns=["Tarih", "Kişi", "Rapor Detayı"])
+    try:
+        sh = google_baglan()
+        mevcut = [ws.title for ws in sh.worksheets()]
+        if not all(s in mevcut for s in ["Stok_Detay", "Finans_Ayar", "Islem_Log"]):
+            return False, None, None, None, None
             
-    return True, df_stok, df_fin, df_log, df_rap
+        df_stok = pd.DataFrame(sh.worksheet("Stok_Detay").get_all_values())
+        if df_stok.empty or len(df_stok) <= 1:
+            return False, None, None, None, None
+        df_stok.columns = df_stok.iloc[0]
+        df_stok = df_stok.drop(0).reset_index(drop=True)
+        df_stok["Mevcut Stok"] = pd.to_numeric(df_stok["Mevcut Stok"], errors="coerce").fillna(0).astype(int)
+        df_stok["Kritik Sınır"] = pd.to_numeric(df_stok["Kritik Sınır"], errors="coerce").fillna(3).astype(int)
+        df_stok["Sheet_Satir"] = df_stok.index + 2
+        
+        df_fin = pd.DataFrame(sh.worksheet("Finans_Ayar").get_all_values())
+        if df_fin.empty or len(df_fin) <= 1:
+            return False, None, None, None, None
+        df_fin.columns = df_fin.iloc[0]
+        df_fin = df_fin.drop(0).reset_index(drop=True)
+        for col in df_fin.columns[1:]:
+            df_fin[col] = pd.to_numeric(df_fin[col], errors="coerce").fillna(0.0)
+            
+        v_log = sh.worksheet("Islem_Log").get_all_values()
+        df_log = pd.DataFrame(v_log[1:], columns=v_log[0]) if len(v_log) > 1 else pd.DataFrame(columns=["Tarih", "Ekip Üyesi", "Stok Kodu", "Model Grubu", "Renk Adı", "İşlem Türü", "Adet Değişimi", "Son Stok"])
+        
+        df_rap = pd.DataFrame(columns=["Tarih", "Kişi", "Rapor Detayı"])
+        if "Rapor" in mevcut:
+            v_r = sh.worksheet("Rapor").get_all_values()
+            if len(v_r) > 1: df_rap = pd.DataFrame(v_r[1:], columns=["Tarih", "Kişi", "Rapor Detayı"])
+                
+        return True, df_stok, df_fin, df_log, df_rap
+    except Exception:
+        return False, None, None, None, None
 
 def tablo_kurulumu():
     sh = google_baglan()
@@ -141,7 +148,8 @@ with st.sidebar:
 
 kuruldu, df_stok, df_fin, df_log, df_rap = verileri_yukle()
 if not kurulu:
-    st.warning("⚠️ Lütfen sol menüden **'⚙️ Sistem Kurulumu ➔ Tabloları Sıfırdan Kur'** butonuna tıklayın.")
+    st.warning("⚠️ Google Sheets tabloları henüz oluşturulmamış veya eksik.")
+    st.info("Lütfen sol menüden **'⚙️ Sistem Kurulumu ➔ 🚀 Tabloları Sıfırdan Kur'** butonuna tıklayarak tabloları otomatik oluşturun.")
     st.stop()
 
 # Üst Özet Barı
@@ -180,7 +188,6 @@ with tab_stok:
         cols[2].write(f"**{renk if renk else 'İsimsiz Renk'}**")
         cols[3].write(f"**{stok} Adet**")
         
-        # Hata düzeltilen kısım burada:
         durum_html = '<span class="badge-err">TÜKENDİ</span>' if stok == 0 else ('<span class="badge-warn">KRİTİK</span>' if stok <= kritik else '<span class="badge-ok">YETERLİ</span>')
         cols[4].markdown(durum_html, unsafe_allow_html=True)
         
